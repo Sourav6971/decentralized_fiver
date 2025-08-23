@@ -1,8 +1,18 @@
-import { Router, type Request, type Response } from "express";
+import {
+	Router,
+	type NextFunction,
+	type Request,
+	type Response,
+} from "express";
 import jwt from "jsonwebtoken";
 
 const router = Router();
 import { upsertUser } from "../utils/db.js";
+import {
+	userMiddleware,
+	type userMiddlewareRequest,
+} from "../middlewares/index.js";
+import { getSignedUrl } from "../utils/bucket.js";
 
 router.post("/signin", async (req: Request, res: Response) => {
 	//add sign verification logic here
@@ -14,7 +24,6 @@ router.post("/signin", async (req: Request, res: Response) => {
 	if (createUserResponse?.success) {
 		token = jwt.sign(
 			{
-				address: createUserResponse?.address,
 				userId: createUserResponse?.userId,
 			},
 			process.env.USER_SECRET ?? ""
@@ -28,5 +37,31 @@ router.post("/signin", async (req: Request, res: Response) => {
 			message: "Internal server error",
 		});
 });
+
+router.get(
+	"/presignedUrl",
+	userMiddleware,
+	async (req: userMiddlewareRequest, res: Response, next: NextFunction) => {
+		try {
+			const userId = req?.userId ?? "";
+			const fileName = req?.query.fileName ?? "";
+			if (!fileName) throw new Error("File name is empty");
+			const response = await getSignedUrl(fileName as string, userId);
+			if (response.success) {
+				return res.json({
+					message: "Fetched signed url succesfully",
+					url: response.url,
+				});
+			} else {
+				throw new Error("Google Cloud error");
+			}
+		} catch (error) {
+			console.error(error);
+			return res.status(500).json({
+				message: "Failed to generate presigned url",
+			});
+		}
+	}
+);
 
 export default router;

@@ -22,21 +22,17 @@ export type signedUrlOption = {
 	expires: number;
 };
 
-async function getSignedUrl(fileName: string) {
+async function getSignedUrl(fileName: string, userId: string) {
 	const options: signedUrlOption = {
 		version: "v4",
-		action: "read",
+		action: "write",
 		expires: Date.now() + 10 * 60 * 1000, // 10 minutes
 	};
 
 	try {
 		const [url] =
-			(await storage
-				.bucket(bucketName)
-				.file(`fiver/${fileName}`)
-				.getSignedUrl(options)) ?? "";
-
-		console.log(url);
+			(await storage.bucket(bucketName).file(fileName).getSignedUrl(options)) ??
+			"";
 		return {
 			success: true,
 			url,
