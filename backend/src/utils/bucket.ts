@@ -22,7 +22,7 @@ export type signedUrlOption = {
 	expires: number;
 };
 
-async function getSignedUrl(fileName: string, userId: string) {
+async function getSignedUrl(fileName: string, userId: number) {
 	const options: signedUrlOption = {
 		version: "v4",
 		action: "write",

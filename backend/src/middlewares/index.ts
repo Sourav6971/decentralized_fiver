@@ -2,7 +2,7 @@ import type { NextFunction, Request, RequestHandler, Response } from "express";
 import jwt, { type JwtPayload } from "jsonwebtoken";
 
 export interface userMiddlewareRequest extends Request {
-	userId?: string;
+	userId?: number;
 }
 
 export interface customJwtPayload extends JwtPayload {
