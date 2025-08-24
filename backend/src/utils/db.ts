@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { success } from "zod";
 
 const DEFAULT_TITLE = "Select the most clickable thumbnail";
 
@@ -32,8 +33,7 @@ const prisma = new PrismaClient();
 // 		return { success: false };
 // 	}
 // }
-
-async function upsertUser(address: String) {
+async function upsertUser(address: string) {
 	try {
 		const user = await prisma.user.upsert({
 			where: {
@@ -87,8 +87,74 @@ async function createTask({
 	}
 }
 
+async function getTaskDetails(taskId: number, userId: number) {
+	try {
+		const taskDetails = await prisma.task.findFirst({
+			where: {
+				id: taskId,
+				user_id: userId,
+			},
+			include: {
+				options: true,
+			},
+		});
+		return { success: true, taskDetails };
+	} catch (error) {
+		console.error(error);
+		return { success: false };
+	}
+}
+
+async function getSubmissions(taskId: number) {
+	try {
+		const responses = await prisma.submission.findMany({
+			where: {
+				task_id: taskId,
+			},
+			include: {
+				option: true,
+			},
+		});
+		return {
+			success: true,
+			responses,
+		};
+	} catch (error) {
+		console.error(error);
+		return {
+			success: false,
+		};
+	}
+}
+
+async function upsertWorker(address: string) {
+	try {
+		const worker = await prisma.worker.upsert({
+			where: {
+				address: address.toString(),
+			},
+			create: {
+				address: address.toString(),
+				locked_amount: "0",
+				pending_amount: "0",
+			},
+			update: {},
+			select: {
+				id: true,
+			},
+		});
+		return { success: true, address, workerId: worker?.id };
+	} catch (error) {
+		console.error(error);
+		return { success: false };
+	}
+}
+
 export {
 	// findUser,
 	upsertUser,
 	createTask,
+	getTaskDetails,
+	getSubmissions,
+	upsertWorker,
 };

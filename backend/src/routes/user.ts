@@ -1,4 +1,5 @@
 import {
+	response,
 	Router,
 	type NextFunction,
 	type Request,
@@ -6,11 +7,19 @@ import {
 } from "express";
 import jwt from "jsonwebtoken";
 
+import "dotenv/config";
+
 const router = Router();
-import { createTask, upsertUser } from "../utils/db.js";
+import {
+	createTask,
+	getSubmissions,
+	getTaskDetails,
+	upsertUser,
+} from "../utils/db.js";
 import {
 	userMiddleware,
-	type userMiddlewareRequest,
+	workerMiddleware,
+	type middlewareRequest,
 } from "../middlewares/index.js";
 import { getSignedUrl } from "../utils/bucket.js";
 import { createTaskInput } from "../utils/zod.js";
@@ -42,10 +51,10 @@ router.post("/signin", async (req: Request, res: Response) => {
 router.get(
 	"/presignedUrl",
 	userMiddleware,
-	async (req: userMiddlewareRequest, res: Response, next: NextFunction) => {
+	async (req: middlewareRequest, res: Response, next: NextFunction) => {
 		try {
-			const userId = req?.userId ?? 0;
-			const fileName = req?.query.fileName ?? "";
+			const userId = Number(req?.userId);
+			const fileName = req?.query?.fileName;
 			if (!fileName) throw new Error("File name is empty");
 			const response = await getSignedUrl(fileName as string, userId);
 			if (response.success) {
@@ -68,7 +77,7 @@ router.get(
 router.post(
 	"/task",
 	userMiddleware,
-	async (req: userMiddlewareRequest, res: Response) => {
+	async (req: middlewareRequest, res: Response) => {
 		const body = req.body;
 		const zodResponse = createTaskInput.safeParse(body);
 		if (!zodResponse.success) {
@@ -93,9 +102,73 @@ router.post(
 		}
 		return res.json({
 			message: "Task created successfully!",
-			task: createTaskResponse?.task,
+			task_id: createTaskResponse?.task?.id,
 		});
 	}
 );
 
+router.get(
+	"/task",
+	userMiddleware,
+	async (req: middlewareRequest, res: Response) => {
+		const taskId = Number(req?.query?.taskId);
+		const userId = Number(req?.userId);
+		const taskDetailResponse = await getTaskDetails(taskId, userId);
+		if (taskDetailResponse?.success) {
+			if (!taskDetailResponse?.taskDetails?.id)
+				return res.status(404).json({
+					message: "Task does not exist",
+				});
+			else {
+				const submissionResponses = await getSubmissions(taskId);
+				if (submissionResponses?.success) {
+					if (submissionResponses?.responses) {
+						var result: Record<
+							string,
+							{
+								count: number;
+								option: {
+									imageUrl: string;
+								};
+							}
+						> = {};
+
+						taskDetailResponse?.taskDetails?.options?.forEach((option) => {
+							if (!option) return;
+							result[option?.id] = {
+								count: 0,
+								option: {
+									imageUrl: option?.image_url,
+								},
+							};
+						});
+
+						submissionResponses?.responses?.forEach((r) => {
+							if (!r?.option_id) return;
+							const key = String(r?.option_id);
+							if (result[key]) result[key].count++;
+						});
+
+						return res.json({
+							message: "Submission fetched successfully",
+							result,
+						});
+					} else {
+						return res.status(404).json({
+							message: "Submissions do not exist",
+						});
+					}
+				} else {
+					return res.status(500).json({
+						message: "Error fetching submissions",
+					});
+				}
+			}
+		} else {
+			return res.status(500).json({
+				message: "Internal server error",
+			});
+		}
+	}
+);
 export default router;
