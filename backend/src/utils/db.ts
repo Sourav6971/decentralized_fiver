@@ -1,7 +1,8 @@
 import { PrismaClient } from "@prisma/client";
-import { success } from "zod";
+import { string, success } from "zod";
 
 const DEFAULT_TITLE = "Select the most clickable thumbnail";
+export const TOTAL_DECIMALS = 1000_000_000;
 
 export type TaskInput = {
 	options: {
@@ -9,7 +10,7 @@ export type TaskInput = {
 	}[];
 	title: string;
 	userId: number;
-	amount: string;
+	amount: number;
 	signature: string;
 };
 
@@ -65,7 +66,7 @@ async function createTask({
 		const task = await prisma.$transaction(async (tx) => {
 			const task = await tx.task.create({
 				data: {
-					amount,
+					amount: amount * TOTAL_DECIMALS,
 					signature,
 					title: title ?? DEFAULT_TITLE,
 					user_id: userId,
@@ -73,8 +74,8 @@ async function createTask({
 			});
 			await tx.option.createMany({
 				data: options.map((x) => ({
-					image_url: x.imageUrl,
-					task_id: task.id,
+					image_url: x?.imageUrl,
+					task_id: task?.id,
 				})),
 			});
 			return task;
@@ -131,12 +132,12 @@ async function upsertWorker(address: string) {
 	try {
 		const worker = await prisma.worker.upsert({
 			where: {
-				address: address.toString(),
+				address: address?.toString(),
 			},
 			create: {
-				address: address.toString(),
-				locked_amount: "0",
-				pending_amount: "0",
+				address: address?.toString(),
+				locked_amount: 0 * TOTAL_DECIMALS,
+				pending_amount: 0 * TOTAL_DECIMALS,
 			},
 			update: {},
 			select: {
@@ -149,12 +150,85 @@ async function upsertWorker(address: string) {
 		return { success: false };
 	}
 }
+async function getNextTask(workerId: number) {
+	try {
+		const task = await prisma.task.findFirst({
+			where: {
+				submissions: {
+					none: {
+						worker_id: workerId,
+					},
+				},
+				done: false,
+			},
+
+			select: {
+				id: true,
+				amount: true,
+				title: true,
+				options: true,
+				totalSubmissions: true,
+			},
+		});
+		return { success: true, task };
+	} catch (error) {
+		console.error(error);
+		return { success: false };
+	}
+}
+async function submitTask(
+	taskId: number,
+	workerId: number,
+	selection: number,
+	amount: number,
+	totalSubmissions: number
+) {
+	try {
+		const validSelections = await prisma.option.findUnique({
+			where: {
+				id: selection,
+				task_id: taskId,
+			},
+			select: {
+				id: true,
+			},
+		});
+		if (!validSelections || !validSelections?.id)
+			return { success: false, message: "The selected option is not valid" };
+		await prisma.$transaction(async (tx) => {
+			await tx.submission.create({
+				data: {
+					amount: amount / totalSubmissions,
+					option_id: selection,
+					worker_id: workerId,
+					task_id: taskId,
+				},
+			});
+			await tx.worker.update({
+				where: {
+					id: workerId,
+				},
+				data: {
+					pending_amount: {
+						increment: amount,
+					},
+				},
+			});
+		});
+		return { success: true };
+	} catch (error) {
+		console.error(error);
+		return { success: false };
+	}
+}
 
 export {
 	// findUser,
 	upsertUser,
+	upsertWorker,
 	createTask,
 	getTaskDetails,
 	getSubmissions,
-	upsertWorker,
+	getNextTask,
+	submitTask,
 };

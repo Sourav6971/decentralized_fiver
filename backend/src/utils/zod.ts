@@ -10,4 +10,9 @@ const createTaskInput = z.object({
 	signature: z.string().trim(),
 });
 
-export { createTaskInput };
+const createSubmissionInput = z.object({
+	taskId: z.number(),
+	selection: z.number(),
+});
+
+export { createTaskInput, createSubmissionInput };

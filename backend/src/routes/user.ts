@@ -14,6 +14,7 @@ import {
 	createTask,
 	getSubmissions,
 	getTaskDetails,
+	TOTAL_DECIMALS,
 	upsertUser,
 } from "../utils/db.js";
 import {
@@ -87,7 +88,7 @@ router.post(
 		}
 		const { options, title, signature } = zodResponse?.data;
 		const userId = req?.userId ?? 0;
-		const amount = "0"; //todo write the logic to get the amount from the signature
+		const amount = 1 * TOTAL_DECIMALS; //todo write the logic to get the amount from the signature
 		const createTaskResponse = await createTask({
 			options,
 			title,

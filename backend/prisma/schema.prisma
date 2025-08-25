@@ -22,8 +22,8 @@ model User{
 model Worker{
   id        Int    @id @default(autoincrement())
   address   String @unique
-  pending_amount String @default("0")
-  locked_amount String @default("0")
+  pending_amount Int //in lamports
+  locked_amount Int //in lamports
   submissions Submission[]
 }
 
@@ -31,11 +31,13 @@ model Worker{
 model Task{
   id Int @id @default(autoincrement())
   title String
-  options Option[]
   user_id Int
   signature String
-  amount String
+  amount Int //in lamports
+  totalSubmissions Int @default(100)
+  done Boolean @default(false)
   user User @relation(fields: [user_id], references: [id])
+  options Option[]
   submissions Submission[]  
 }
 
@@ -50,11 +52,12 @@ model Option{
 
 model Submission{
 id Int @id @default(autoincrement())
-amount String
+amount Int //in lamports
 worker_id Int 
 worker Worker @relation(fields: [worker_id],references: [id])
 option_id Int
 option Option @relation(fields: [option_id],references: [id])
 task_id Int
 task Task @relation(fields: [task_id],references: [id])
+@@unique([worker_id,task_id])//every user should make only one submission to a task
 }
