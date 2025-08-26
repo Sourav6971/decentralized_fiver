@@ -8,6 +8,7 @@ const createTaskInput = z.object({
 	),
 	title: z.string().trim(),
 	signature: z.string().trim(),
+	maxSubmissions: z.number().optional(),
 });
 
 const createSubmissionInput = z.object({

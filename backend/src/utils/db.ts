@@ -12,6 +12,10 @@ export type TaskInput = {
 	userId: number;
 	amount: number;
 	signature: string;
+	maxSubmissions?: number | undefined;
+};
+export type CustomError = {
+	message: string;
 };
 
 export type ErrorType = string | { message: string };
@@ -61,6 +65,7 @@ async function createTask({
 	userId,
 	amount,
 	signature,
+	maxSubmissions,
 }: TaskInput) {
 	try {
 		const task = await prisma.$transaction(async (tx) => {
@@ -70,6 +75,7 @@ async function createTask({
 					signature,
 					title: title ?? DEFAULT_TITLE,
 					user_id: userId,
+					maxSubmissions: Number(maxSubmissions),
 				},
 			});
 			await tx.option.createMany({
@@ -154,12 +160,13 @@ async function getNextTask(workerId: number) {
 	try {
 		const task = await prisma.task.findFirst({
 			where: {
+				done: false,
 				submissions: {
 					none: {
 						worker_id: workerId,
 					},
 				},
-				done: false,
+				currentSubmissions: { lt: prisma.task.fields.maxSubmissions },
 			},
 
 			select: {
@@ -167,9 +174,11 @@ async function getNextTask(workerId: number) {
 				amount: true,
 				title: true,
 				options: true,
-				totalSubmissions: true,
+				currentSubmissions: true,
+				maxSubmissions: true,
 			},
 		});
+
 		return { success: true, task };
 	} catch (error) {
 		console.error(error);
@@ -181,7 +190,7 @@ async function submitTask(
 	workerId: number,
 	selection: number,
 	amount: number,
-	totalSubmissions: number
+	maxSubmissiions: number
 ) {
 	try {
 		const validSelections = await prisma.option.findUnique({
@@ -198,7 +207,7 @@ async function submitTask(
 		await prisma.$transaction(async (tx) => {
 			await tx.submission.create({
 				data: {
-					amount: amount / totalSubmissions,
+					amount: amount / maxSubmissiions,
 					option_id: selection,
 					worker_id: workerId,
 					task_id: taskId,
@@ -210,7 +219,7 @@ async function submitTask(
 				},
 				data: {
 					pending_amount: {
-						increment: amount,
+						increment: amount / maxSubmissiions,
 					},
 				},
 			});
@@ -222,6 +231,72 @@ async function submitTask(
 	}
 }
 
+async function getBalance(workerId: number) {
+	try {
+		const balance = await prisma.worker.findFirst({
+			where: {
+				id: workerId,
+			},
+			select: {
+				pending_amount: true,
+				locked_amount: true,
+			},
+		});
+
+		return {
+			success: true,
+			pendingAmount: (balance?.pending_amount ?? 0) / TOTAL_DECIMALS,
+			lockedAmount: (balance?.locked_amount ?? 0) / TOTAL_DECIMALS,
+		};
+	} catch {
+		return { success: false };
+	}
+}
+
+async function createPayout(workerId: number, txnId: string) {
+	try {
+		const worker = await prisma.worker.findFirst({
+			where: {
+				id: workerId,
+				pending_amount: { gt: 0 },
+			},
+		});
+		if (!worker) throw new Error("No payouts remaining");
+		await prisma.$transaction(async (tx) => {
+			await tx.worker.update({
+				where: {
+					id: workerId,
+				},
+				data: {
+					pending_amount: {
+						decrement: worker?.pending_amount ?? 0,
+					},
+					locked_amount: {
+						increment: worker?.pending_amount ?? 0,
+					},
+				},
+			});
+			await tx.payouts.create({
+				data: {
+					worker_id: workerId,
+					amount: worker?.pending_amount ?? 0,
+					status: "Processing",
+					signature: txnId,
+				},
+			});
+		});
+		return { success: true };
+	} catch (error) {
+		console.error(error);
+		const message = (error as CustomError).message ?? error;
+		return { success: false, message };
+	}
+}
+
+async function updateTaskDetails() {
+	await prisma.$queryRaw`UPDATE "Task" t SET done=true WHERE t."currentSubmissions"=t."maxSubmissions"`;
+}
+
 export {
 	// findUser,
 	upsertUser,
@@ -231,4 +306,7 @@ export {
 	getSubmissions,
 	getNextTask,
 	submitTask,
+	getBalance,
+	createPayout,
+	updateTaskDetails,
 };

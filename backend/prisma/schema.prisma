@@ -24,6 +24,7 @@ model Worker{
   address   String @unique
   pending_amount Int //in lamports
   locked_amount Int //in lamports
+  payouts Payouts[]
   submissions Submission[]
 }
 
@@ -34,7 +35,8 @@ model Task{
   user_id Int
   signature String
   amount Int //in lamports
-  totalSubmissions Int @default(100)
+  currentSubmissions Int @default(0)
+  maxSubmissions Int @default(100)
   done Boolean @default(false)
   user User @relation(fields: [user_id], references: [id])
   options Option[]
@@ -49,6 +51,19 @@ model Option{
   submissions Submission[]
 }
 
+model Payouts{
+  id Int @id @default(autoincrement())
+  worker_id  Int
+  worker Worker @relation(fields: [worker_id],references: [id])
+  amount Int
+  signature String
+  status TxnStatus
+}
+enum TxnStatus{
+  Processing
+  Success
+  Failure
+}
 
 model Submission{
 id Int @id @default(autoincrement())

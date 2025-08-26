@@ -1,13 +1,61 @@
 import { Router, type Request, type Response } from "express";
-import { getNextTask, submitTask, upsertWorker } from "../utils/db.js";
+import {
+	createPayout,
+	getBalance,
+	getNextTask,
+	submitTask,
+	upsertWorker,
+} from "../utils/db.js";
 import jwt from "jsonwebtoken";
 import {
 	workerMiddleware,
 	type middlewareRequest,
 } from "../middlewares/index.js";
 import { createSubmissionInput } from "../utils/zod.js";
+import { success } from "zod";
 
 const router = Router();
+
+router.get(
+	"/balance",
+	workerMiddleware,
+	async (req: middlewareRequest, res: Response) => {
+		const workerId = req.workerId;
+		const balanceResponse = await getBalance(Number(workerId));
+		if (balanceResponse.success) {
+			return res.json({
+				message: "Fetched balance successfully",
+				pendingAmount: balanceResponse?.pendingAmount,
+				lockedAmount: balanceResponse?.lockedAmount,
+			});
+		} else {
+			return res.status(500).json({
+				message: "Could not fetch balance",
+			});
+		}
+	}
+);
+
+router.post(
+	"/payout",
+	workerMiddleware,
+	async (req: middlewareRequest, res) => {
+		const workerId = req.workerId;
+		// const amount = req.body.amount; todo allow users to create payout of their wish
+
+		let txnId = "0x2324423421123";
+		const payoutResponse = await createPayout(Number(workerId), txnId);
+		if (payoutResponse?.success) {
+			return res.json({
+				message: "Payout successfull",
+			});
+		} else {
+			return res.status(500).json({
+				message: payoutResponse?.message,
+			});
+		}
+	}
+);
 
 router.post("/signin", async (req: Request, res: Response) => {
 	//add sign verification logic here
@@ -89,7 +137,7 @@ router.post(
 			workerId,
 			selection,
 			taskResponse?.task?.amount,
-			taskResponse?.task?.totalSubmissions
+			taskResponse?.task?.maxSubmissions
 		);
 		if (submitTaskResponse?.success) {
 			return res.json({

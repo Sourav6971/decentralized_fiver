@@ -1,5 +1,4 @@
 import {
-	response,
 	Router,
 	type NextFunction,
 	type Request,
@@ -86,15 +85,17 @@ router.post(
 				message: "Invalid input types",
 			});
 		}
-		const { options, title, signature } = zodResponse?.data;
+		const { options, title, signature, maxSubmissions } = zodResponse?.data;
+
 		const userId = req?.userId ?? 0;
-		const amount = 1 * TOTAL_DECIMALS; //todo write the logic to get the amount from the signature
+		const amount = 1; //todo write the logic to get the amount from the signature
 		const createTaskResponse = await createTask({
 			options,
 			title,
 			signature,
 			amount,
 			userId,
+			maxSubmissions,
 		});
 		if (!createTaskResponse.success) {
 			return res.status(500).json({
