@@ -21,6 +21,14 @@ export type signedUrlOption = {
 	action: "read" | "write" | "delete" | "resumable";
 	expires: number;
 };
+await storage.bucket(bucketName).setCorsConfiguration([
+	{
+		origin: ["*"],
+		method: ["PUT", "GET"],
+		responseHeader: ["*"],
+		maxAgeSeconds: 3600,
+	},
+]);
 
 async function getSignedUrl(fileName: string, userId: number) {
 	const options: signedUrlOption = {

@@ -6,7 +6,7 @@ const userRouter = await import("./routes/user.js");
 const workerRouter = await import("./routes/worker.js");
 import "./scripts/cron.js";
 import "dotenv/config";
-const PORT = process.env.PORT ?? 3000;
+const PORT = process.env.PORT ?? 3607;
 
 const app = express();
 app.use(cors());
