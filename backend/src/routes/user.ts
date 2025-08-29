@@ -21,8 +21,9 @@ import {
 	workerMiddleware,
 	type middlewareRequest,
 } from "../middlewares/index.js";
-import { getSignedUrl } from "../utils/bucket.js";
+import { getSignature } from "../utils/bucket.js";
 import { createTaskInput } from "../utils/zod.js";
+import { record } from "zod/v3";
 
 router.post("/signin", async (req: Request, res: Response) => {
 	//add sign verification logic here
@@ -49,27 +50,18 @@ router.post("/signin", async (req: Request, res: Response) => {
 });
 
 router.get(
-	"/presignedUrl",
+	"/signature",
 	userMiddleware,
-	async (req: middlewareRequest, res: Response, next: NextFunction) => {
-		try {
-			const userId = Number(req?.userId);
-			const fileName = req?.query?.fileName;
-			if (!fileName) throw new Error("File name is empty");
-			const response = await getSignedUrl(fileName as string, userId);
-			if (response.success) {
-				return res.json({
-					message: "Fetched signed url succesfully",
-					url: response.url,
-				});
-			} else {
-				throw new Error("Google Cloud error");
-			}
-		} catch (error) {
-			console.error(error);
-			return res.status(500).json({
-				message: "Failed to generate presigned url",
+	async (req: Request, res: Response, next: NextFunction) => {
+		const signatureResponse = await getSignature();
+		if (signatureResponse?.success) {
+			return res.json({
+				message: "Fetched signature succesfully",
+				signature: signatureResponse?.signature,
+				timestamp: signatureResponse?.timestamp,
 			});
+		} else {
+			throw new Error("Google Cloud error");
 		}
 	}
 );
@@ -124,45 +116,35 @@ router.get(
 			else {
 				const submissionResponses = await getSubmissions(taskId);
 				if (submissionResponses?.success) {
-					if (submissionResponses?.responses) {
-						var result: Record<
-							string,
-							{
-								count: number;
-								option: {
-									imageUrl: string;
-								};
-							}
-						> = {};
+					let result: Record<string, { count: number; imageUrl: string }> = {};
+					taskDetailResponse?.taskDetails?.options?.forEach((option) => {
+						result[option?.id] = {
+							count: 0,
+							imageUrl: option?.image_url,
+						};
+					});
 
-						taskDetailResponse?.taskDetails?.options?.forEach((option) => {
-							if (!option) return;
-							result[option?.id] = {
+					submissionResponses?.responses?.forEach((option) => {
+						const key = String(option?.id ?? ""); // make sure key is not "null"
+
+						if (!result[key]) {
+							result[key] = {
 								count: 0,
-								option: {
-									imageUrl: option?.image_url,
-								},
+								imageUrl: option.option?.image_url,
 							};
-						});
+						} else {
+							result[key].count++;
+						}
+					});
 
-						submissionResponses?.responses?.forEach((r) => {
-							if (!r?.option_id) return;
-							const key = String(r?.option_id);
-							if (result[key]) result[key].count++;
-						});
-
-						return res.json({
-							message: "Submission fetched successfully",
-							result,
-						});
-					} else {
-						return res.status(404).json({
-							message: "Submissions do not exist",
-						});
-					}
+					return res.json({
+						message: "Submission fetched successfully",
+						result,
+						taskDetails: taskDetailResponse?.taskDetails,
+					});
 				} else {
-					return res.status(500).json({
-						message: "Error fetching submissions",
+					return res.status(404).json({
+						message: "Submissions do not exist",
 					});
 				}
 			}
