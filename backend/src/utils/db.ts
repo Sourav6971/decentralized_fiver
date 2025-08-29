@@ -101,7 +101,9 @@ async function getTaskDetails(taskId: number, userId: number) {
 				id: taskId,
 				user_id: userId,
 			},
-			include: {
+			select: {
+				id: true,
+				title: true,
 				options: true,
 			},
 		});
