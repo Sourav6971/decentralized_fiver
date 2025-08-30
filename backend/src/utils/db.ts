@@ -176,7 +176,6 @@ async function getNextTask(workerId: number) {
 				amount: true,
 				title: true,
 				options: true,
-				currentSubmissions: true,
 				maxSubmissions: true,
 			},
 		});
@@ -192,7 +191,7 @@ async function submitTask(
 	workerId: number,
 	selection: number,
 	amount: number,
-	maxSubmissiions: number
+	maxSubmissions: number
 ) {
 	try {
 		const validSelections = await prisma.option.findUnique({
@@ -209,7 +208,7 @@ async function submitTask(
 		await prisma.$transaction(async (tx) => {
 			await tx.submission.create({
 				data: {
-					amount: amount / maxSubmissiions,
+					amount: amount / maxSubmissions,
 					option_id: selection,
 					worker_id: workerId,
 					task_id: taskId,
@@ -221,7 +220,7 @@ async function submitTask(
 				},
 				data: {
 					pending_amount: {
-						increment: amount / maxSubmissiions,
+						increment: amount / maxSubmissions,
 					},
 				},
 			});

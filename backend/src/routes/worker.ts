@@ -60,11 +60,15 @@ router.post(
 router.post("/signin", async (req: Request, res: Response) => {
 	//add sign verification logic here
 
-	const hardcodedWalletAddress =
-		"workerjCYYBD1WDiCGG8BfRN8r5LPvTVrkhuQs9gt5dSSb";
+	const walletAddress = req.body.publicKey;
+	if (!walletAddress) {
+		return res.status(400).json({
+			message: "Enter a valid public key",
+		});
+	}
 	var token = "";
 
-	const createUserResponse = await upsertWorker(hardcodedWalletAddress);
+	const createUserResponse = await upsertWorker(walletAddress);
 	if (createUserResponse?.success) {
 		token = jwt.sign(
 			{
@@ -142,6 +146,7 @@ router.post(
 		if (submitTaskResponse?.success) {
 			return res.json({
 				message: "Task submitted successfully",
+				nextTask: await getNextTask(workerId),
 			});
 		} else {
 			var message = submitTaskResponse?.message;

@@ -4,9 +4,9 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 import { ClipLoader } from "react-spinners";
 
-export default function AppBar() {
+export default function AppBar({ connected, setConnected }) {
 	const [connecting, setConnecting] = useState(false);
-	const [connected, setConnected] = useState(false);
+	// const [connected, setConnected] = useState(false);
 	const handleConnect = async () => {
 		const provider = window?.phantom?.solana;
 		if (!provider) {
@@ -45,7 +45,8 @@ export default function AppBar() {
 		}
 	};
 	return (
-		<div className="min-w-screen px-16 py-4 flex justify-end shadow">
+		<div className="min-w-screen px-16 py-4 flex justify-between shadow">
+			<span className="text-2xl">Worker</span>
 			<button
 				className="bg-slate-900 text-slate-200 py-2 px-4 rounded cursor-pointer w-[200px] h-[50px]"
 				onClick={handleConnect}
