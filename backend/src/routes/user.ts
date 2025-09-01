@@ -24,14 +24,22 @@ import {
 import { getSignature } from "../utils/bucket.js";
 import { createTaskInput } from "../utils/zod.js";
 import { record } from "zod/v3";
+import { verifyTransaction } from "../utils/index.js";
 
 router.post("/signin", async (req: Request, res: Response) => {
 	//add sign verification logic here
 
-	const hardcodedWalletAddress = "GKKRjCYYBD1WDiCGG8BfRN8r5LPvTVrkhuQs9gt5dSSb";
+	const { publicKey, signinMessage, signature } = req.body;
+	const verification = verifyTransaction(signinMessage, signature, publicKey);
+	if (!verification) {
+		return res.status(401).json({
+			message: "Could not verify signature",
+		});
+	}
+
 	var token = "";
 
-	const createUserResponse = await upsertUser(hardcodedWalletAddress);
+	const createUserResponse = await upsertUser(publicKey);
 	if (createUserResponse?.success) {
 		token = jwt.sign(
 			{
@@ -41,6 +49,7 @@ router.post("/signin", async (req: Request, res: Response) => {
 		);
 		return res.json({
 			message: "Sign in successfull",
+			userId: createUserResponse?.userId,
 			token,
 		});
 	} else
@@ -124,13 +133,13 @@ router.get(
 						};
 					});
 
-					submissionResponses?.responses?.forEach((option) => {
-						const key = String(option?.id ?? ""); // make sure key is not "null"
+					submissionResponses?.responses?.forEach((submission) => {
+						const key = String(submission?.option?.id ?? ""); // make sure key is not "null"
 
 						if (!result[key]) {
 							result[key] = {
 								count: 0,
-								imageUrl: option.option?.image_url,
+								imageUrl: submission?.option?.image_url,
 							};
 						} else {
 							result[key].count++;

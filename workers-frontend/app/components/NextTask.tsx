@@ -1,8 +1,9 @@
 "use client";
 import axios, { AxiosError } from "axios";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { ScaleLoader } from "react-spinners";
+import { UserContext } from "../context/user";
 
 export interface Task {
 	id: string;
@@ -15,7 +16,8 @@ export interface Task {
 	}[];
 }
 
-export default function ({ connected }: { connected: boolean }) {
+export default function () {
+	const { connected } = useContext(UserContext)!;
 	const [currentTask, setCurrentTask] = useState<Task | null>(null);
 	const [selection, setSelection] = useState<Number | null>();
 	const [loading, setLoading] = useState(true);

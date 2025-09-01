@@ -2,9 +2,10 @@
 
 import axios, { all, type AxiosError } from "axios";
 import "dotenv/config";
-import { ChangeEvent, useState } from "react";
+import { ChangeEvent, useContext, useState } from "react";
 import toast from "react-hot-toast";
 import { ScaleLoader } from "react-spinners";
+import { UserContext } from "../context/user";
 export interface Image {
 	imageUrl: string;
 }
@@ -16,6 +17,7 @@ export default function UploadImage({
 	loading,
 }: any) {
 	const [uploading, setUploading] = useState(false);
+	const { transferSol, paid, setPaid } = useContext(UserContext)!;
 	async function uploadImage(image: File) {
 		try {
 			// console.log(image);
@@ -100,14 +102,20 @@ export default function UploadImage({
 				<div className="w-[1200px] flex justify-end">
 					<button
 						className="mt-10  bg-blue-500 text-white text-xl font-mono rounded py-2 px-4 cursor-pointer hover:bg-blue-600"
-						onClick={submitTask}
+						onClick={() => {
+							paid ? submitTask() : transferSol();
+						}}
 					>
-						{loading ? (
-							<div className="w-[130px]">
-								<ScaleLoader color="#ffffff" height={10} radius={10} />
-							</div>
+						{paid ? (
+							loading ? (
+								<div className="w-[130px]">
+									<ScaleLoader color="#ffffff" height={10} radius={10} />
+								</div>
+							) : (
+								"Submit task"
+							)
 						) : (
-							"Submit task"
+							"Pay 0.1 sol"
 						)}
 					</button>
 				</div>

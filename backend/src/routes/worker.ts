@@ -13,6 +13,7 @@ import {
 } from "../middlewares/index.js";
 import { createSubmissionInput } from "../utils/zod.js";
 import { success } from "zod";
+import { payoutTransaction, verifyTransaction } from "../utils/index.js";
 
 const router = Router();
 
@@ -41,10 +42,19 @@ router.post(
 	workerMiddleware,
 	async (req: middlewareRequest, res) => {
 		const workerId = req.workerId;
+		const { amount, address } = req.body;
 		// const amount = req.body.amount; todo allow users to create payout of their wish
+		const transactionResponse = await payoutTransaction(amount, address);
+		if (!transactionResponse?.success || !transactionResponse?.txnId) {
+			return res
+				.status(500)
+				.json({ message: "Could not verify your transaction" });
+		}
 
-		let txnId = "0x2324423421123";
-		const payoutResponse = await createPayout(Number(workerId), txnId);
+		const payoutResponse = await createPayout(
+			Number(workerId),
+			transactionResponse?.txnId
+		);
 		if (payoutResponse?.success) {
 			return res.json({
 				message: "Payout successfull",
@@ -58,17 +68,17 @@ router.post(
 );
 
 router.post("/signin", async (req: Request, res: Response) => {
-	//add sign verification logic here
-
-	const walletAddress = req.body.publicKey;
-	if (!walletAddress) {
-		return res.status(400).json({
-			message: "Enter a valid public key",
+	const { publicKey, signinMessage, signature } = req.body;
+	const verification = verifyTransaction(signinMessage, signature, publicKey);
+	if (!verification) {
+		return res.status(401).json({
+			message: "Could not verify signature",
 		});
 	}
+
 	var token = "";
 
-	const createUserResponse = await upsertWorker(walletAddress);
+	const createUserResponse = await upsertWorker(publicKey);
 	if (createUserResponse?.success) {
 		token = jwt.sign(
 			{
@@ -79,6 +89,9 @@ router.post("/signin", async (req: Request, res: Response) => {
 		return res.json({
 			message: "Sign in successfull",
 			token,
+			userId: createUserResponse?.workerId,
+			pendingAmount: createUserResponse?.pendingAmount,
+			lockedAmount: createUserResponse?.lockedAmount,
 		});
 	} else
 		return res.status(500).json({
