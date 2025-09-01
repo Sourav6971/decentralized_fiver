@@ -150,9 +150,17 @@ async function upsertWorker(address: string) {
 			update: {},
 			select: {
 				id: true,
+				pending_amount: true,
+				locked_amount: true,
 			},
 		});
-		return { success: true, address, workerId: worker?.id };
+		return {
+			success: true,
+			address,
+			workerId: worker?.id,
+			pendingAmount: worker?.pending_amount,
+			lockedAmount: worker?.locked_amount,
+		};
 	} catch (error) {
 		console.error(error);
 		return { success: false };

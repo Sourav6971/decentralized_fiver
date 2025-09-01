@@ -13,6 +13,7 @@ import {
 } from "../middlewares/index.js";
 import { createSubmissionInput } from "../utils/zod.js";
 import { success } from "zod";
+import { verifyTransaction } from "../utils/index.js";
 
 const router = Router();
 
@@ -58,17 +59,17 @@ router.post(
 );
 
 router.post("/signin", async (req: Request, res: Response) => {
-	//add sign verification logic here
-
-	const walletAddress = req.body.publicKey;
-	if (!walletAddress) {
-		return res.status(400).json({
-			message: "Enter a valid public key",
+	const { publicKey, signinMessage, signature } = req.body;
+	const verification = verifyTransaction(signinMessage, signature, publicKey);
+	if (!verification) {
+		return res.status(401).json({
+			message: "Could not verify signature",
 		});
 	}
+
 	var token = "";
 
-	const createUserResponse = await upsertWorker(walletAddress);
+	const createUserResponse = await upsertWorker(publicKey);
 	if (createUserResponse?.success) {
 		token = jwt.sign(
 			{
@@ -79,6 +80,9 @@ router.post("/signin", async (req: Request, res: Response) => {
 		return res.json({
 			message: "Sign in successfull",
 			token,
+			userId: createUserResponse?.workerId,
+			pendingAmount: createUserResponse?.pendingAmount,
+			lockedAmount: createUserResponse?.lockedAmount,
 		});
 	} else
 		return res.status(500).json({
