@@ -13,7 +13,7 @@ import {
 } from "../middlewares/index.js";
 import { createSubmissionInput } from "../utils/zod.js";
 import { success } from "zod";
-import { verifyTransaction } from "../utils/index.js";
+import { payoutTransaction, verifyTransaction } from "../utils/index.js";
 
 const router = Router();
 
@@ -42,10 +42,19 @@ router.post(
 	workerMiddleware,
 	async (req: middlewareRequest, res) => {
 		const workerId = req.workerId;
+		const { amount, address } = req.body;
 		// const amount = req.body.amount; todo allow users to create payout of their wish
+		const transactionResponse = await payoutTransaction(amount, address);
+		if (!transactionResponse?.success || !transactionResponse?.txnId) {
+			return res
+				.status(500)
+				.json({ message: "Could not verify your transaction" });
+		}
 
-		let txnId = "0x2324423421123";
-		const payoutResponse = await createPayout(Number(workerId), txnId);
+		const payoutResponse = await createPayout(
+			Number(workerId),
+			transactionResponse?.txnId
+		);
 		if (payoutResponse?.success) {
 			return res.json({
 				message: "Payout successfull",

@@ -100,7 +100,29 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 	}
 	async function initiatePayout() {
 		setInitiating(true);
-		setTimeout(() => setInitiating(false), 2000);
+		try {
+			const response = await axios({
+				method: "POST",
+				url: "http://localhost:3607/v1/worker/payout",
+				headers: {
+					Authorization: "Bearer " + localStorage.getItem("token"),
+				},
+				data: {
+					amount: user?.pendingAmount,
+					address: user?.address,
+				},
+			});
+			toast.success(response?.data?.message);
+		} catch (err) {
+			const error = err as AxiosError<{ message: string }>;
+			if (error?.response?.data?.message) {
+				toast.error(error?.response?.data?.message);
+			} else if (error?.message) {
+				toast.error(error?.message);
+			} else toast.error("Unknown error");
+		} finally {
+			setInitiating(false);
+		}
 	}
 
 	return (

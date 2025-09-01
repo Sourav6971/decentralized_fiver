@@ -1,5 +1,17 @@
 import nacl from "tweetnacl";
-import { PublicKey } from "@solana/web3.js";
+import {
+	clusterApiUrl,
+	Connection,
+	Keypair,
+	LAMPORTS_PER_SOL,
+	PublicKey,
+	sendAndConfirmTransaction,
+	SystemProgram,
+	Transaction,
+} from "@solana/web3.js";
+import bs58 from "bs58";
+import "dotenv/config";
+import { TOTAL_DECIMALS } from "./db.js";
 
 async function verifyTransaction(
 	message: string,
@@ -22,4 +34,28 @@ async function verifyTransaction(
 	}
 }
 
-export { verifyTransaction };
+async function payoutTransaction(amount: number, address: string) {
+	try {
+		const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
+		const privateKey = process.env.SECRET_KEY ?? "";
+		const from = bs58.decode(privateKey);
+
+		const transaction = new Transaction().add(
+			SystemProgram?.transfer({
+				fromPubkey: Keypair.fromSecretKey(from).publicKey,
+				toPubkey: new PublicKey(address),
+				lamports: amount,
+			})
+		);
+		const signature = await sendAndConfirmTransaction(connection, transaction, [
+			Keypair?.fromSecretKey(from),
+		]);
+
+		return { success: true, txnId: signature };
+	} catch (error) {
+		console.error(error);
+		return { success: false };
+	}
+}
+
+export { verifyTransaction, payoutTransaction };
